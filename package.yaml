@@ -3,6 +3,14 @@ version: 0.0.0.0
 
 dependencies:
   - base
+  - text
+  - containers
+  - array
+  - transformers
+  - mtl
+
+default-extensions:
+  - NoFieldSelectors
 
 library:
   exposed-modules: Hello

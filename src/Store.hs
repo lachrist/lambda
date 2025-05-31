@@ -10,7 +10,7 @@ import Control.Monad.Trans.Except (ExceptT)
 import Data.Array.ST (STArray, getBounds, readArray, writeArray)
 import Data.Ix (Ix, inRange, range)
 
-newtype Memory x a v = Memory {array :: STArray x a (Maybe v)}
+newtype Memory x a v = HoleArray {array :: STArray x a (Maybe v)}
 
 data StoreStatus a = Success a | Failure
 
@@ -31,7 +31,7 @@ findHole store (curr : rest) =
     Just _ -> findHole store rest
 
 instance Store Memory where
-  load address (Memory store) = do
+  load address (HoleArray store) = do
     bounds <- lift $ getBounds store
     unless
       (inRange bounds address)
@@ -40,10 +40,10 @@ instance Store Memory where
     case optional of
       Nothing -> throwError "not value stored at that address"
       Just value -> return value
-  save address value (Memory store) = do
+  save address value (HoleArray store) = do
     bounds <- lift $ getBounds store
     unless
       (inRange bounds address)
       (throwError "address out of range")
     lift $ writeArray store address (Just value)
-  init (Memory store) = lift (getBounds store) >>= (findHole store . range)
+  init (HoleArray store) = lift (getBounds store) >>= (findHole store . range)

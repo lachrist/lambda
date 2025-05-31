@@ -1,22 +1,9 @@
 module Value where
 
+import Builtin (Builtin)
 import Data.Map (Map)
-import Expression
-import Primitive (Primitive, PrimitiveBuiltin)
-
-data Builtin
-  = PrimitiveBuiltin PrimitiveBuiltin
-  | ReferenceBuiltin ReferenceBuiltin
-  deriving (Eq, Show)
-
-data ReferenceBuiltin
-  = Equal
-  | Cons
-  | Car
-  | Cdr
-  | SetCar
-  | SetCdr
-  deriving (Eq, Show)
+import Expression (Expression, Variable)
+import Primitive (Primitive)
 
 type Address = Int
 

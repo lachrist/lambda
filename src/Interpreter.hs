@@ -1,12 +1,15 @@
-{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Interpreter where
 
+import Builtin (Builtin (Car, Cdr, Cons, Eq, Minus, Plus, SetCar, SetCdr))
 import Continuation (Continuation (ApplyContinuation, IfContinuation, LetContinuation))
-import Control.Monad.Except (throwError)
-import Control.Monad.ST (ST)
+import Control.Monad.Except (runExceptT, throwError)
+import Control.Monad.ST (ST, runST)
 import Control.Monad.Trans.Except (ExceptT)
+import Data.Array.MArray (newArray)
 import Data.Map (Map, fromList, insert, lookup, union)
+import Data.Text (unpack)
 import Expression
   ( Expression
       ( ApplicationExpression,
@@ -18,9 +21,13 @@ import Expression
       ),
     Variable,
   )
-import Primitive (Primitive (Null, PrimitiveBoolean), applyPrimitiveBuiltin)
-import Store (Store (init, load, save))
-import Value (Address, Builtin (PrimitiveBuiltin, ReferenceBuiltin), IndirectValue (LambdaIndirect, PairIndirect), ReferenceBuiltin (Car, Cdr, Cons, Equal, SetCar, SetCdr), Value (BuiltinImmediate, PrimitiveImmediate, Reference))
+import Primitive (Primitive (BooleanPrimitive, NullPrimitive), applyPrimitiveBuiltin)
+import Store (Memory (HoleArray), Store (init, load, save))
+import Value
+  ( Address,
+    IndirectValue (LambdaIndirect, PairIndirect),
+    Value (BuiltinImmediate, PrimitiveImmediate, Reference),
+  )
 
 data State x s
   = Ongoing
@@ -34,13 +41,21 @@ data State x s
         store :: s x Address IndirectValue
       }
 
+------------
+-- Helper --
+------------
+
 branch :: (Monad m) => Value -> ExceptT String m Bool
-branch (PrimitiveImmediate (PrimitiveBoolean bool)) = return bool
+branch (PrimitiveImmediate (BooleanPrimitive bool)) = return bool
 branch _ = throwError "not a boolean"
 
 unwrapPrimitive :: (Monad m) => Value -> ExceptT String m Primitive
 unwrapPrimitive (PrimitiveImmediate primitive) = return primitive
 unwrapPrimitive value = throwError $ "excepted a builtin >> " ++ show value
+
+----------
+-- Step --
+----------
 
 step :: (Store s) => State x s -> ExceptT String (ST x) (State x s)
 step state@(Success {}) = return state
@@ -48,7 +63,7 @@ step (Ongoing (PrimitiveExpression inner) _ store cont) =
   continue (PrimitiveImmediate inner) cont store
 step (Ongoing (VariableExpression variable) env store cont) =
   case Data.Map.lookup variable env of
-    Nothing -> throwError $ "missing variable :" ++ variable
+    Nothing -> throwError $ "missing variable :" ++ unpack variable
     Just value -> continue value cont store
 step (Ongoing (LambdaExpression params body) env store cont) =
   do
@@ -104,9 +119,25 @@ applyIndirect callee input _ _ =
   throwError $ "cannot apply >> " ++ show callee ++ " >> " ++ show input
 
 applyBuiltin :: (Store s) => Builtin -> [Value] -> s x Address IndirectValue -> ExceptT String (ST x) Value
-applyBuiltin (ReferenceBuiltin builtin) arguments store =
-  applyReferenceBuiltin builtin arguments store
-applyBuiltin (PrimitiveBuiltin builtin) arguments _ = do
+applyBuiltin Eq [v1, v2] _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive $ v1 == v2
+applyBuiltin Cons [v1, v2] store = do
+  addr <- Store.init store
+  save addr (PairIndirect v1 v2) store
+  return $ Reference addr
+applyBuiltin Car [Reference addr] store =
+  fmap fst (load addr store >>= toPair)
+applyBuiltin Cdr [Reference addr] store =
+  fmap snd (load addr store >>= toPair)
+applyBuiltin SetCar [Reference addr, v1] store = do
+  (_, v2) <- load addr store >>= toPair
+  save addr (PairIndirect v1 v2) store
+  return $ PrimitiveImmediate NullPrimitive
+applyBuiltin SetCdr [Reference addr, v2] store = do
+  (v1, _) <- load addr store >>= toPair
+  save addr (PairIndirect v1 v2) store
+  return $ PrimitiveImmediate NullPrimitive
+applyBuiltin builtin arguments _ = do
   input <- mapM unwrapPrimitive arguments
   output <- applyPrimitiveBuiltin builtin input
   return $ PrimitiveImmediate output
@@ -115,24 +146,26 @@ toPair :: (Monad m) => IndirectValue -> ExceptT String m (Value, Value)
 toPair (PairIndirect x y) = return (x, y)
 toPair indirect = throwError $ "exptected a pair but got >> " ++ show indirect
 
-applyReferenceBuiltin :: (Store s) => ReferenceBuiltin -> [Value] -> s x Address IndirectValue -> ExceptT String (ST x) Value
-applyReferenceBuiltin Equal [v1, v2] _ =
-  return $ PrimitiveImmediate $ PrimitiveBoolean $ v1 == v2
-applyReferenceBuiltin Cons [v1, v2] store = do
-  addr <- Store.init store
-  save addr (PairIndirect v1 v2) store
-  return $ Reference addr
-applyReferenceBuiltin Car [Reference addr] store =
-  fmap fst (load addr store >>= toPair)
-applyReferenceBuiltin Cdr [Reference addr] store =
-  fmap snd (load addr store >>= toPair)
-applyReferenceBuiltin SetCar [Reference addr, v1] store = do
-  (_, v2) <- load addr store >>= toPair
-  save addr (PairIndirect v1 v2) store
-  return $ PrimitiveImmediate Null
-applyReferenceBuiltin SetCdr [Reference addr, v2] store = do
-  (v1, _) <- load addr store >>= toPair
-  save addr (PairIndirect v1 v2) store
-  return $ PrimitiveImmediate Null
-applyReferenceBuiltin callee input _ =
-  throwError $ "cannot apply >> " ++ show callee ++ " >> " ++ show input
+---------------
+-- Interface --
+---------------
+
+run :: (Store s) => State x s -> ExceptT String (ST x) (Maybe Primitive)
+run (Success (PrimitiveImmediate primitive) _) = return $ Just primitive
+run (Success _ _) = return Nothing
+run state = step state >>= run
+
+initialEnvironment :: Map Variable Value
+initialEnvironment =
+  fromList
+    [ ("+", BuiltinImmediate Plus),
+      ("-", BuiltinImmediate Minus)
+    ]
+
+initializeStore :: Int -> ST x (Memory x Address IndirectValue)
+initializeStore size = HoleArray <$> newArray (0, size) Nothing
+
+exec :: Expression -> Either String (Maybe Primitive)
+exec program = runST $ do
+  store <- initializeStore 10000
+  runExceptT $ run (Ongoing program initialEnvironment store [])

@@ -14,10 +14,13 @@ library
   exposed-modules:
       Hello
   other-modules:
+      Builtin
       Continuation
       Expression
+      Intermediate
       Interpreter
       Main
+      Parser
       Primitive
       Store
       Value
@@ -31,6 +34,7 @@ library
       array
     , base
     , containers
+    , megaparsec
     , mtl
     , text
     , transformers
@@ -50,6 +54,7 @@ test-suite test
     , base
     , containers
     , lambda
+    , megaparsec
     , mtl
     , tasty
     , tasty-hunit

@@ -1,8 +1,9 @@
 module Expression where
 
+import Data.Text (Text)
 import Primitive (Primitive)
 
-type Variable = String
+type Variable = Text
 
 data Expression
   = PrimitiveExpression {inner :: Primitive}

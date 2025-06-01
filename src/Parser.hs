@@ -8,7 +8,15 @@ import Control.Monad (void)
 import Data.Char (isAlpha)
 import Data.Text (Text)
 import Data.Void (Void)
-import Expression (Expression (ApplicationExpression, IfExpression, LetExpression, PrimitiveExpression, VariableExpression))
+import Expression
+  ( Expression
+      ( ApplicationExpression,
+        IfExpression,
+        LetExpression,
+        PrimitiveExpression,
+        VariableExpression
+      ),
+  )
 import Primitive (Primitive (BooleanPrimitive, NullPrimitive, NumberPrimitive))
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as C
@@ -83,6 +91,7 @@ parseExpression =
 data File = File {path :: String, content :: Text}
 
 parseFile :: File -> Either String Expression
-parseFile (File {path, content}) = case P.runParser parseExpression path content of
-  Left failure -> Left $ show failure
-  Right expression -> Right expression
+parseFile (File {path, content}) =
+  case P.runParser (space >> parseExpression) path content of
+    Left failure -> Left $ show failure
+    Right expression -> Right expression

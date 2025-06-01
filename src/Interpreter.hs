@@ -13,7 +13,6 @@ import Control.Monad.ST (ST, runST)
 import Control.Monad.Trans.Except (ExceptT)
 import Data.Array.MArray (newArray)
 import Data.Map (Map, fromList, insert, lookup, union)
-import Data.Text (unpack)
 import Expression
   ( Expression
       ( ApplicationExpression,
@@ -23,7 +22,7 @@ import Expression
         PrimitiveExpression,
         VariableExpression
       ),
-    Variable,
+    Variable (Variable),
   )
 import Primitive (Primitive (BooleanPrimitive, NullPrimitive), applyPrimitiveBuiltin)
 import Store (Memory (HoleArray), Store (init, load, save))
@@ -71,7 +70,7 @@ step (Ongoing (PrimitiveExpression inner) _ store cont) =
   continue (PrimitiveImmediate inner) cont store
 step (Ongoing (VariableExpression variable) env store cont) =
   case Data.Map.lookup variable env of
-    Nothing -> throwError $ "missing variable :" ++ unpack variable
+    Nothing -> throwError $ "missing variable :" ++ show variable
     Just value -> continue value cont store
 step (Ongoing (LambdaExpression params body) env store cont) =
   do
@@ -166,7 +165,7 @@ run state = step state >>= run
 
 toBuiltinBinding :: Builtin -> (Variable, Value)
 toBuiltinBinding builtin =
-  (getBuiltinName builtin, BuiltinImmediate builtin)
+  (Variable $ getBuiltinName builtin, BuiltinImmediate builtin)
 
 initialEnvironment :: Map Variable Value
 initialEnvironment =

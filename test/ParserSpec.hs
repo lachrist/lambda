@@ -3,7 +3,17 @@
 module ParserSpec (tests) where
 
 import Data.Text (Text, pack, unpack)
-import Expression (Expression (ApplicationExpression, IfExpression, LambdaExpression, LetExpression, PrimitiveExpression, VariableExpression))
+import Expression
+  ( Expression
+      ( ApplicationExpression,
+        IfExpression,
+        LambdaExpression,
+        LetExpression,
+        PrimitiveExpression,
+        VariableExpression
+      ),
+    Variable (Variable),
+  )
 import Parser (File (File), parseFile)
 import Primitive (Primitive (BooleanPrimitive, NullPrimitive, NumberPrimitive))
 import Test.Tasty (TestTree, defaultMain, testGroup)
@@ -24,32 +34,32 @@ tests =
       testParser " #f " (PrimitiveExpression $ BooleanPrimitive False),
       testParser " 123 " (PrimitiveExpression $ NumberPrimitive 123),
       testParser " 123.456 " (PrimitiveExpression $ NumberPrimitive 123.456),
-      testParser " xyz " (VariableExpression "xyz"),
-      testParser " +-*/?!=>< " (VariableExpression "+-*/?!=><"),
+      testParser " xyz " (VariableExpression $ Variable "xyz"),
+      testParser " +-*/?!=>< " (VariableExpression $ Variable "+-*/?!=><"),
       testParser
         " ( if x y z ) "
         ( IfExpression
-            (VariableExpression "x")
-            (VariableExpression "y")
-            (VariableExpression "z")
+            (VariableExpression $ Variable "x")
+            (VariableExpression $ Variable "y")
+            (VariableExpression $ Variable "z")
         ),
       testParser
         " ( let x y z ) "
         ( LetExpression
-            "x"
-            (VariableExpression "y")
-            (VariableExpression "z")
+            (Variable "x")
+            (VariableExpression $ Variable "y")
+            (VariableExpression $ Variable "z")
         ),
       testParser
         " ( lambda ( x y ) z ) "
         ( LambdaExpression
-            ["x", "y"]
-            (VariableExpression "z")
+            [Variable "x", Variable "y"]
+            (VariableExpression $ Variable "z")
         ),
       testParser
         " ( f x y ) "
         ( ApplicationExpression
-            (VariableExpression "f")
-            [VariableExpression "x", VariableExpression "y"]
+            (VariableExpression $ Variable "f")
+            [VariableExpression $ Variable "x", VariableExpression $ Variable "y"]
         )
     ]

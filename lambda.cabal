@@ -15,7 +15,6 @@ library
       Builtin
       Continuation
       Expression
-      Hello
       Intermediate
       Interpreter
       Parser
@@ -48,7 +47,6 @@ test-suite test
       Builtin
       Continuation
       Expression
-      Hello
       Intermediate
       Interpreter
       Parser

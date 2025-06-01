@@ -17,6 +17,7 @@ import Expression
         PrimitiveExpression,
         VariableExpression
       ),
+    Variable (Variable),
   )
 import Primitive (Primitive (BooleanPrimitive, NullPrimitive, NumberPrimitive))
 import Text.Megaparsec (errorBundlePretty, try)
@@ -50,8 +51,8 @@ enumOperatorChar = "+-*/?!=><"
 isVariableChar :: Char -> Bool
 isVariableChar char = isAlpha char || char `elem` enumOperatorChar
 
-parseVariable :: Parser Text
-parseVariable = lexeme $ P.takeWhile1P (Just "variable") isVariableChar
+parseVariable :: Parser Variable
+parseVariable = lexeme $ Variable <$> P.takeWhile1P (Just "variable") isVariableChar
 
 parseIfExpression :: Parser Expression
 parseIfExpression = do

@@ -3,7 +3,7 @@ module Expression where
 import Data.Text (Text)
 import Primitive (Primitive)
 
-type Variable = Text
+newtype Variable = Variable Text deriving (Eq, Ord, Show)
 
 data Expression
   = PrimitiveExpression {inner :: Primitive}

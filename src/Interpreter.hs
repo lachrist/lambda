@@ -3,7 +3,7 @@
 module Interpreter where
 
 import Builtin
-  ( Builtin (Begin, Car, Cdr, Cons, Eq, SetCar, SetCdr),
+  ( Builtin (Begin, Car, Cdr, Cons, Eq, IsBoolean, IsNull, IsNumber, IsPair, IsProcedure, SetCar, SetCdr),
     enumBuiltin,
     getBuiltinName,
   )
@@ -24,7 +24,7 @@ import Expression
       ),
     Variable (Variable),
   )
-import Primitive (Primitive (BooleanPrimitive, NullPrimitive), applyPrimitiveBuiltin)
+import Primitive (Primitive (BooleanPrimitive, NullPrimitive, NumberPrimitive), applyPrimitiveBuiltin)
 import Store (Memory (HoleArray), Store (init, load, save))
 import Value
   ( Address,
@@ -54,11 +54,19 @@ branch _ = throwError "not a boolean"
 
 unwrapPrimitive :: (Monad m) => Value -> ExceptT String m Primitive
 unwrapPrimitive (PrimitiveImmediate primitive) = return primitive
-unwrapPrimitive value = throwError $ "excepted a builtin >> " ++ show value
+unwrapPrimitive value = throwError $ "expected a primitive >> " ++ show value
 
 lastExcept :: (Monad m) => [a] -> ExceptT String m a
 lastExcept [] = throwError "cannt access the last element of an empty list"
 lastExcept vs = return $ last vs
+
+isLambda :: IndirectValue -> Bool
+isLambda (LambdaIndirect {}) = True
+isLambda _ = False
+
+isPair :: IndirectValue -> Bool
+isPair (PairIndirect {}) = True
+isPair _ = False
 
 ----------
 -- Step --
@@ -128,23 +136,59 @@ applyIndirect callee input _ _ =
 applyBuiltin :: (Store s) => Builtin -> [Value] -> s x Address IndirectValue -> ExceptT String (ST x) Value
 applyBuiltin Eq [v1, v2] _ =
   return $ PrimitiveImmediate $ BooleanPrimitive $ v1 == v2
+-- Begin
 applyBuiltin Begin vs _ = lastExcept vs
+-- Cons
 applyBuiltin Cons [v1, v2] store = do
   addr <- Store.init store
   save addr (PairIndirect v1 v2) store
   return $ Reference addr
+-- Car
 applyBuiltin Car [Reference addr] store =
   fmap fst (load addr store >>= toPair)
+-- Cdr
 applyBuiltin Cdr [Reference addr] store =
   fmap snd (load addr store >>= toPair)
+-- SetCar
 applyBuiltin SetCar [Reference addr, v1] store = do
   (_, v2) <- load addr store >>= toPair
   save addr (PairIndirect v1 v2) store
   return $ PrimitiveImmediate NullPrimitive
+-- SetCdr
 applyBuiltin SetCdr [Reference addr, v2] store = do
   (v1, _) <- load addr store >>= toPair
   save addr (PairIndirect v1 v2) store
   return $ PrimitiveImmediate NullPrimitive
+-- IsNull
+applyBuiltin IsNull [PrimitiveImmediate NullPrimitive] _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive True
+applyBuiltin IsNull _ _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive False
+-- IsBoolean
+applyBuiltin IsBoolean [PrimitiveImmediate (BooleanPrimitive _)] _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive True
+applyBuiltin IsBoolean _ _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive False
+-- IsNumber
+applyBuiltin IsNumber [PrimitiveImmediate (NumberPrimitive _)] _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive True
+applyBuiltin IsNumber _ _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive False
+-- IsPair
+applyBuiltin IsPair [BuiltinImmediate _] _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive False
+applyBuiltin IsPair [PrimitiveImmediate _] _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive False
+applyBuiltin IsPair [Reference addr] store =
+  PrimitiveImmediate . BooleanPrimitive . isPair <$> load addr store
+-- IsProcedure
+applyBuiltin IsProcedure [BuiltinImmediate _] _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive True
+applyBuiltin IsProcedure [PrimitiveImmediate _] _ =
+  return $ PrimitiveImmediate $ BooleanPrimitive False
+applyBuiltin IsProcedure [Reference addr] store =
+  PrimitiveImmediate . BooleanPrimitive . isLambda <$> load addr store
+-- Apply Primitive Builtin
 applyBuiltin builtin arguments _ = do
   input <- mapM unwrapPrimitive arguments
   output <- applyPrimitiveBuiltin builtin input

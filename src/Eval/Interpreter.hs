@@ -12,8 +12,6 @@ import Control.Monad.ST (ST, runST)
 import Control.Monad.Trans.Except (ExceptT)
 import Data.Array.MArray (newArray)
 import Data.Map (Map, fromList, insert, lookup, union)
-import Eval.Continuation (Continuation (ApplyContinuation, IfContinuation, LetContinuation))
-import Eval.Store (Memory (HoleArray), Store (init, load, save))
 import Eval.Value
   ( Address,
     IndirectValue (LambdaIndirect, PairIndirect),
@@ -31,6 +29,24 @@ import Expression
     Variable (Variable),
   )
 import Primitive (Primitive (BooleanPrimitive, NullPrimitive, NumberPrimitive), applyPrimitiveBuiltin)
+import Store (Memory (HoleArray), Store (init, load, save))
+
+data Continuation
+  = IfContinuation
+      { environment :: Map Variable Value,
+        consequent :: Expression,
+        alternate :: Expression
+      }
+  | LetContinuation
+      { environment :: Map Variable Value,
+        bound :: Variable,
+        body :: Expression
+      }
+  | ApplyContinuation
+      { environment :: Map Variable Value,
+        todo :: [Expression],
+        done :: [Value]
+      }
 
 data State x s
   = Ongoing
@@ -68,6 +84,10 @@ isPair :: IndirectValue -> Bool
 isPair (PairIndirect {}) = True
 isPair _ = False
 
+toPair :: (Monad m) => IndirectValue -> ExceptT String m (Value, Value)
+toPair (PairIndirect x y) = return (x, y)
+toPair indirect = throwError $ "exptected a pair but got >> " ++ show indirect
+
 ----------
 -- Step --
 ----------
@@ -82,7 +102,7 @@ step (Ongoing (VariableExpression variable) env store cont) =
     Just value -> continue value cont store
 step (Ongoing (LambdaExpression params body) env store cont) =
   do
-    addr <- Eval.Store.init store
+    addr <- Store.init store
     save addr (LambdaIndirect env params body) store
     continue (Reference addr) cont store
 step (Ongoing (IfExpression test consequent alternate) env store cont) =
@@ -91,7 +111,7 @@ step (Ongoing (ApplicationExpression callee args) env store cont) =
   return $ Ongoing callee env store (ApplyContinuation env args [] : cont)
 step (Ongoing (LetExpression left (LambdaExpression params body1) body2) env store cont) =
   do
-    addr <- Eval.Store.init store
+    addr <- Store.init store
     let env' = insert left (Reference addr) env
     save addr (LambdaIndirect env' params body1) store
     return $ Ongoing body2 env' store cont
@@ -140,7 +160,7 @@ applyBuiltin Eq [v1, v2] _ =
 applyBuiltin Begin vs _ = lastExcept vs
 -- Cons
 applyBuiltin Cons [v1, v2] store = do
-  addr <- Eval.Store.init store
+  addr <- Store.init store
   save addr (PairIndirect v1 v2) store
   return $ Reference addr
 -- Car
@@ -193,10 +213,6 @@ applyBuiltin builtin arguments _ = do
   input <- mapM unwrapPrimitive arguments
   output <- applyPrimitiveBuiltin builtin input
   return $ PrimitiveImmediate output
-
-toPair :: (Monad m) => IndirectValue -> ExceptT String m (Value, Value)
-toPair (PairIndirect x y) = return (x, y)
-toPair indirect = throwError $ "exptected a pair but got >> " ++ show indirect
 
 ---------------
 -- Interface --

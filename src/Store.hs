@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Eval.Store where
+module Store where
 
 import Control.Monad (unless)
 import Control.Monad.Except (throwError)

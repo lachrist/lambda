@@ -44,8 +44,11 @@ parseBoolean = (True <$ symbol "#t") <|> (False <$ symbol "#f")
 parseNull :: Parser ()
 parseNull = void $ symbol "#n"
 
+enumOperatorChar :: [Char]
+enumOperatorChar = "+-*/?!=><"
+
 isVariableChar :: Char -> Bool
-isVariableChar char = isAlpha char || char `elem` ("+-*/?!" :: String)
+isVariableChar char = isAlpha char || char `elem` enumOperatorChar
 
 parseVariable :: Parser Text
 parseVariable = lexeme $ P.takeWhile1P (Just "variable") isVariableChar
@@ -106,6 +109,6 @@ data File = File {path :: String, content :: Text}
 
 parseFile :: File -> Either String Expression
 parseFile (File {path, content}) =
-  case P.runParser (space >> parseExpression) path content of
+  case P.runParser (space *> parseExpression <* P.eof) path content of
     Left failure -> Left $ errorBundlePretty failure
     Right expression -> Right expression

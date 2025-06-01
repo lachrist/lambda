@@ -2,7 +2,11 @@
 
 module Interpreter where
 
-import Builtin (Builtin (Car, Cdr, Cons, Eq, Minus, Plus, SetCar, SetCdr))
+import Builtin
+  ( Builtin (Begin, Car, Cdr, Cons, Eq, SetCar, SetCdr),
+    enumBuiltin,
+    getBuiltinName,
+  )
 import Continuation (Continuation (ApplyContinuation, IfContinuation, LetContinuation))
 import Control.Monad.Except (runExceptT, throwError)
 import Control.Monad.ST (ST, runST)
@@ -52,6 +56,10 @@ branch _ = throwError "not a boolean"
 unwrapPrimitive :: (Monad m) => Value -> ExceptT String m Primitive
 unwrapPrimitive (PrimitiveImmediate primitive) = return primitive
 unwrapPrimitive value = throwError $ "excepted a builtin >> " ++ show value
+
+lastExcept :: (Monad m) => [a] -> ExceptT String m a
+lastExcept [] = throwError "cannt access the last element of an empty list"
+lastExcept vs = return $ last vs
 
 ----------
 -- Step --
@@ -121,6 +129,7 @@ applyIndirect callee input _ _ =
 applyBuiltin :: (Store s) => Builtin -> [Value] -> s x Address IndirectValue -> ExceptT String (ST x) Value
 applyBuiltin Eq [v1, v2] _ =
   return $ PrimitiveImmediate $ BooleanPrimitive $ v1 == v2
+applyBuiltin Begin vs _ = lastExcept vs
 applyBuiltin Cons [v1, v2] store = do
   addr <- Store.init store
   save addr (PairIndirect v1 v2) store
@@ -155,17 +164,19 @@ run (Success (PrimitiveImmediate primitive) _) = return $ Just primitive
 run (Success _ _) = return Nothing
 run state = step state >>= run
 
+toBuiltinBinding :: Builtin -> (Variable, Value)
+toBuiltinBinding builtin =
+  (getBuiltinName builtin, BuiltinImmediate builtin)
+
 initialEnvironment :: Map Variable Value
 initialEnvironment =
   fromList
-    [ ("+", BuiltinImmediate Plus),
-      ("-", BuiltinImmediate Minus)
-    ]
+    (map toBuiltinBinding enumBuiltin)
 
 initializeStore :: Int -> ST x (Memory x Address IndirectValue)
 initializeStore size = HoleArray <$> newArray (0, size) Nothing
 
-exec :: Expression -> Either String (Maybe Primitive)
-exec program = runST $ do
-  store <- initializeStore 10000
+exec :: Int -> Expression -> Either String (Maybe Primitive)
+exec memory program = runST $ do
+  store <- initializeStore memory
   runExceptT $ run (Ongoing program initialEnvironment store [])

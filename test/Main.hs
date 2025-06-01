@@ -1,3 +1,4 @@
+import qualified InterpreterSpec
 import qualified ParserSpec
 import Test.Tasty (TestTree, defaultMain, testGroup)
 
@@ -7,6 +8,7 @@ main = defaultMain tests
 tests :: TestTree
 tests =
   testGroup
-    "All tests"
-    [ ParserSpec.tests
+    "All"
+    [ ParserSpec.tests,
+      InterpreterSpec.tests
     ]

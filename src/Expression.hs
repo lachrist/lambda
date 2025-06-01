@@ -12,4 +12,4 @@ data Expression
   | LetExpression {left :: Variable, right :: Expression, body :: Expression}
   | IfExpression {test :: Expression, consequent :: Expression, alternate :: Expression}
   | ApplicationExpression {callee :: Expression, arguments :: [Expression]}
-  deriving (Show)
+  deriving (Eq, Show)

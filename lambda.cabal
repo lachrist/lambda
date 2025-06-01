@@ -12,18 +12,17 @@ build-type:     Simple
 
 library
   exposed-modules:
-      Hello
-  other-modules:
       Builtin
       Continuation
       Expression
+      Hello
       Intermediate
       Interpreter
-      Main
       Parser
       Primitive
       Store
       Value
+  other-modules:
       Paths_lambda
   hs-source-dirs:
       src
@@ -42,18 +41,30 @@ library
 
 test-suite test
   type: exitcode-stdio-1.0
-  main-is: Tests.hs
+  main-is: Main.hs
   other-modules:
+      ParserSpec
+      Builtin
+      Continuation
+      Expression
+      Hello
+      Intermediate
+      Interpreter
+      Parser
+      Primitive
+      Store
+      Value
       Paths_lambda
   hs-source-dirs:
       test
+      src
   default-extensions:
       NoFieldSelectors
+  ghc-options: -main-is Main
   build-depends:
       array
     , base
     , containers
-    , lambda
     , megaparsec
     , mtl
     , tasty

@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser where
+module Parser (parseFile, File (File)) where
 
 import Control.Applicative (Alternative (..), (<|>))
 import Control.Monad (void)
@@ -12,12 +12,14 @@ import Expression
   ( Expression
       ( ApplicationExpression,
         IfExpression,
+        LambdaExpression,
         LetExpression,
         PrimitiveExpression,
         VariableExpression
       ),
   )
 import Primitive (Primitive (BooleanPrimitive, NullPrimitive, NumberPrimitive))
+import Text.Megaparsec (errorBundlePretty, try)
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as C
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -34,7 +36,7 @@ symbol :: Text -> Parser Text
 symbol = L.symbol space
 
 parseNumber :: Parser Float
-parseNumber = lexeme L.float
+parseNumber = lexeme (try L.float <|> L.decimal)
 
 parseBoolean :: Parser Bool
 parseBoolean = (True <$ symbol "#t") <|> (False <$ symbol "#f")
@@ -57,6 +59,17 @@ parseIfExpression = do
   alternate <- parseExpression
   void $ symbol ")"
   return $ IfExpression test consequent alternate
+
+parseLambdaExpression :: Parser Expression
+parseLambdaExpression = do
+  void $ symbol "("
+  void $ symbol "lambda"
+  void $ symbol "("
+  parameters <- many parseVariable
+  void $ symbol ")"
+  body <- parseExpression
+  void $ symbol ")"
+  return $ LambdaExpression parameters body
 
 parseLetExpression :: Parser Expression
 parseLetExpression = do
@@ -83,8 +96,9 @@ parseExpression =
       PrimitiveExpression . BooleanPrimitive <$> parseBoolean,
       PrimitiveExpression . NumberPrimitive <$> parseNumber,
       VariableExpression <$> parseVariable,
-      parseIfExpression,
-      parseLetExpression,
+      try parseIfExpression,
+      try parseLetExpression,
+      try parseLambdaExpression,
       parseApplicationExpression
     ]
 
@@ -93,5 +107,5 @@ data File = File {path :: String, content :: Text}
 parseFile :: File -> Either String Expression
 parseFile (File {path, content}) =
   case P.runParser (space >> parseExpression) path content of
-    Left failure -> Left $ show failure
+    Left failure -> Left $ errorBundlePretty failure
     Right expression -> Right expression

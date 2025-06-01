@@ -14,15 +14,15 @@ default-extensions:
   - NoFieldSelectors
 
 library:
-  exposed-modules: Hello
   source-dirs: src
   ghc-options: -Wall
 
 tests:
   test:
-    main: Tests.hs
-    source-dirs: test
+    main: Main
+    source-dirs:
+      - test
+      - src
     dependencies:
-      - lambda
       - tasty
       - tasty-hunit

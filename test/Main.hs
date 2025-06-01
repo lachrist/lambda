@@ -1,6 +1,5 @@
-import Hello (hello)
+import qualified ParserSpec
 import Test.Tasty (TestTree, defaultMain, testGroup)
-import Test.Tasty.HUnit (testCase, (@?=))
 
 main :: IO ()
 main = defaultMain tests
@@ -8,5 +7,6 @@ main = defaultMain tests
 tests :: TestTree
 tests =
   testGroup
-    "MyTests"
-    [testCase "HELLO" $ hello @?= "Hello"]
+    "All tests"
+    [ ParserSpec.tests
+    ]

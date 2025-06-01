@@ -1,4 +1,4 @@
-module Intermediate where
+module VM.Bytecode where
 
 -- PushConst 42
 -- MakeClosure L0        ;; create closure for `(lambda (x) x)`

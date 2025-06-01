@@ -13,14 +13,14 @@ build-type:     Simple
 library
   exposed-modules:
       Builtin
-      Continuation
+      Eval.Continuation
+      Eval.Interpreter
+      Eval.Store
+      Eval.Value
       Expression
-      Intermediate
-      Interpreter
       Parser
       Primitive
-      Store
-      Value
+      VM.Bytecode
   other-modules:
       Paths_lambda
   hs-source-dirs:
@@ -42,17 +42,17 @@ test-suite test
   type: exitcode-stdio-1.0
   main-is: Main.hs
   other-modules:
-      InterpreterSpec
+      EvalSpec
       ParserSpec
       Builtin
-      Continuation
+      Eval.Continuation
+      Eval.Interpreter
+      Eval.Store
+      Eval.Value
       Expression
-      Intermediate
-      Interpreter
       Parser
       Primitive
-      Store
-      Value
+      VM.Bytecode
       Paths_lambda
   hs-source-dirs:
       test

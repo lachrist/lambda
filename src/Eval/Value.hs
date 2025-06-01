@@ -1,4 +1,4 @@
-module Value where
+module Eval.Value where
 
 import Builtin (Builtin)
 import Data.Map (Map)

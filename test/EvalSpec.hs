@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module InterpreterSpec (tests) where
+module EvalSpec (tests) where
 
 import Data.Text (Text, unpack)
-import Interpreter (exec)
+import Eval.Interpreter (exec)
 import Parser (File (File), parseFile)
 import Primitive (Primitive (BooleanPrimitive, NumberPrimitive))
 import Test.Tasty (TestTree, testGroup)

@@ -1,8 +1,8 @@
-module Continuation where
+module Eval.Continuation where
 
 import Data.Map (Map)
+import Eval.Value (Value)
 import Expression (Expression, Variable)
-import Value (Value)
 
 data Continuation
   = IfContinuation

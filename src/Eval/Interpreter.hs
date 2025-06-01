@@ -1,18 +1,24 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Interpreter where
+module Eval.Interpreter where
 
 import Builtin
   ( Builtin (Begin, Car, Cdr, Cons, Eq, IsBoolean, IsNull, IsNumber, IsPair, IsProcedure, SetCar, SetCdr),
     enumBuiltin,
     getBuiltinName,
   )
-import Continuation (Continuation (ApplyContinuation, IfContinuation, LetContinuation))
 import Control.Monad.Except (runExceptT, throwError)
 import Control.Monad.ST (ST, runST)
 import Control.Monad.Trans.Except (ExceptT)
 import Data.Array.MArray (newArray)
 import Data.Map (Map, fromList, insert, lookup, union)
+import Eval.Continuation (Continuation (ApplyContinuation, IfContinuation, LetContinuation))
+import Eval.Store (Memory (HoleArray), Store (init, load, save))
+import Eval.Value
+  ( Address,
+    IndirectValue (LambdaIndirect, PairIndirect),
+    Value (BuiltinImmediate, PrimitiveImmediate, Reference),
+  )
 import Expression
   ( Expression
       ( ApplicationExpression,
@@ -25,12 +31,6 @@ import Expression
     Variable (Variable),
   )
 import Primitive (Primitive (BooleanPrimitive, NullPrimitive, NumberPrimitive), applyPrimitiveBuiltin)
-import Store (Memory (HoleArray), Store (init, load, save))
-import Value
-  ( Address,
-    IndirectValue (LambdaIndirect, PairIndirect),
-    Value (BuiltinImmediate, PrimitiveImmediate, Reference),
-  )
 
 data State x s
   = Ongoing
@@ -82,7 +82,7 @@ step (Ongoing (VariableExpression variable) env store cont) =
     Just value -> continue value cont store
 step (Ongoing (LambdaExpression params body) env store cont) =
   do
-    addr <- Store.init store
+    addr <- Eval.Store.init store
     save addr (LambdaIndirect env params body) store
     continue (Reference addr) cont store
 step (Ongoing (IfExpression test consequent alternate) env store cont) =
@@ -91,7 +91,7 @@ step (Ongoing (ApplicationExpression callee args) env store cont) =
   return $ Ongoing callee env store (ApplyContinuation env args [] : cont)
 step (Ongoing (LetExpression left (LambdaExpression params body1) body2) env store cont) =
   do
-    addr <- Store.init store
+    addr <- Eval.Store.init store
     let env' = insert left (Reference addr) env
     save addr (LambdaIndirect env' params body1) store
     return $ Ongoing body2 env' store cont
@@ -140,7 +140,7 @@ applyBuiltin Eq [v1, v2] _ =
 applyBuiltin Begin vs _ = lastExcept vs
 -- Cons
 applyBuiltin Cons [v1, v2] store = do
-  addr <- Store.init store
+  addr <- Eval.Store.init store
   save addr (PairIndirect v1 v2) store
   return $ Reference addr
 -- Car

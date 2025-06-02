@@ -14,6 +14,7 @@ library
   exposed-modules:
       Builtin
       Bytecode.Compiler
+      Bytecode.Formatter
       Bytecode.Frame
       Bytecode.Instruction
       Bytecode.Interpreter
@@ -55,6 +56,7 @@ test-suite test
       ParserSpec
       Builtin
       Bytecode.Compiler
+      Bytecode.Formatter
       Bytecode.Frame
       Bytecode.Instruction
       Bytecode.Interpreter

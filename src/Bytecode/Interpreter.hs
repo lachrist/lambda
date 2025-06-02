@@ -1,7 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module Bytecode.Interpreter where
 
@@ -17,7 +16,7 @@ import Bytecode.Frame
     pushFrameValue,
     readFrame,
   )
-import Bytecode.Instruction (Instruction (..), Label (Label), Program, TextualProgram, loadProgram)
+import Bytecode.Instruction (Instruction (..), Program (Program), ProgramBody)
 import Bytecode.Lambda (Lambda (Lambda))
 import Bytecode.Pointer (loadInstruction, loadParameterList)
 import Control.Monad.Except (ExceptT, runExceptT, throwError)
@@ -25,7 +24,6 @@ import Control.Monad.ST (ST, runST)
 import Data.Array.MArray (newArray)
 import Data.Functor ((<&>))
 import Data.Map (Map)
-import Data.Text (pack)
 import Environment (initialEnvironment)
 import Expression (Variable)
 import Memory (HoleArray (HoleArray), Memory (..))
@@ -37,11 +35,11 @@ type Environment = Map Variable Value
 data State x m = State
   { frame :: Frame,
     dump :: [Frame],
-    program :: Program,
+    program :: ProgramBody,
     store :: m x Address (IndirectValue Lambda)
   }
 
-leave :: (Memory m) => [Value] -> [Frame] -> Program -> m x Address (IndirectValue Lambda) -> ExceptT String (ST x) (Either Value (State x m))
+leave :: (Memory m) => [Value] -> [Frame] -> ProgramBody -> m x Address (IndirectValue Lambda) -> ExceptT String (ST x) (Either Value (State x m))
 leave [result] [] _ _ =
   return $ Left result
 leave [result] (frame : dump) prog store =
@@ -62,9 +60,9 @@ step (State frame@(Frame pointer stack _) dump prog store) =
     (Just instr) -> Right <$> dispatchInstruction instr (State (incrementFramePosition frame) dump prog store)
 
 dispatchInstruction :: (Memory m) => Instruction -> State x m -> ExceptT String (ST x) (State x m)
-dispatchInstruction (PrimitiveInstruction prim) (State frame dump prog store) =
+dispatchInstruction (PushPrimitiveInstruction prim) (State frame dump prog store) =
   return $ State (pushFrameValue (PrimitiveImmediate prim) frame) dump prog store
-dispatchInstruction (LambdaInstruction self label) (State frame dump prog store) = do
+dispatchInstruction (PushLambdaInstruction self label) (State frame dump prog store) = do
   addr <- Memory.init store
   save addr (LambdaIndirect $ makeLambda label ((,addr) <$> self) frame) store
   return $ State (pushFrameValue (Reference addr) frame) dump prog store
@@ -81,7 +79,7 @@ dispatchInstruction (ApplyInstruction arity) (State frame dump prog store) = do
   (args, frame') <- popMultipleFrameValues arity frame
   (callee, frame'') <- popFrameValue frame'
   apply callee (reverse args) (State frame'' dump prog store)
-dispatchInstruction (LetInstruction label) (State frame dump prog store) = do
+dispatchInstruction (LetGotoInstruction label) (State frame dump prog store) = do
   (right, frame') <- popFrameValue frame
   enter
     (makeFrame label (getFrameEnvironment frame))
@@ -112,14 +110,14 @@ exec (Right ongoing) = step ongoing >>= exec
 initializeStore :: Int -> ST x (HoleArray x Address (IndirectValue Lambda))
 initializeStore size = HoleArray <$> newArray (0, size) Nothing
 
-eval :: Int -> TextualProgram -> Either String (Maybe Primitive)
-eval memory (loadProgram -> prog) = runST $ do
+eval :: Int -> Program -> Either String (Maybe Primitive)
+eval memory (Program entry prog) = runST $ do
   store <- initializeStore memory
   runExceptT $
     exec $
       Right $
         State
-          (makeFrame (Label $ pack "main") initialEnvironment)
+          (makeFrame entry initialEnvironment)
           []
           prog
           store

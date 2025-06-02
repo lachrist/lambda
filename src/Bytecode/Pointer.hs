@@ -1,6 +1,6 @@
 module Bytecode.Pointer (makeInitialPointer, Pointer, incrementPointer, loadInstruction, loadParameterList) where
 
-import Bytecode.Instruction (Block (..), Instruction, Label, Program)
+import Bytecode.Instruction (Block (..), Instruction, Label, ProgramBody)
 import Control.Monad.Except (ExceptT, MonadError (throwError))
 import Data.Functor ((<&>))
 import Data.Map (Map)
@@ -22,10 +22,10 @@ lookupExcept key env =
     Nothing -> throwError $ "Missing label: " ++ show key
     (Just val) -> return val
 
-loadParameterList :: (Monad m) => Pointer -> Program -> ExceptT String m [Variable]
+loadParameterList :: (Monad m) => Pointer -> ProgramBody -> ExceptT String m [Variable]
 loadParameterList (Pointer label _) prog =
   lookupExcept label prog <&> (\(Block params _) -> params)
 
-loadInstruction :: (Monad m) => Pointer -> Program -> ExceptT String m (Maybe Instruction)
+loadInstruction :: (Monad m) => Pointer -> ProgramBody -> ExceptT String m (Maybe Instruction)
 loadInstruction (Pointer label position) prog =
   lookupExcept label prog <&> (\(Block _ body) -> body V.!? position)

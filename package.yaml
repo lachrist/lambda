@@ -9,7 +9,9 @@ dependencies:
   - vector
   - transformers
   - mtl
-  - megaparsec
+  - megaparsec 
+  - hashable
+  - dlist
 
 default-extensions:
   - NoFieldSelectors

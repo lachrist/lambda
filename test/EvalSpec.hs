@@ -17,7 +17,7 @@ testInterpreter program result =
 tests :: TestTree
 tests =
   testGroup
-    "Interpreter"
+    "Eval"
     [ testGroup
         "Compound Expression"
         [ testInterpreter "(let x 123 x)" (NumberPrimitive 123),

@@ -38,6 +38,8 @@ library
       array
     , base
     , containers
+    , dlist
+    , hashable
     , megaparsec
     , mtl
     , text
@@ -77,6 +79,8 @@ test-suite test
       array
     , base
     , containers
+    , dlist
+    , hashable
     , megaparsec
     , mtl
     , tasty

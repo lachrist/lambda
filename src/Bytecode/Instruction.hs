@@ -19,13 +19,5 @@ data Instruction
   | LambdaInstruction {self :: Maybe Variable, definition :: Label}
   | ReadInstruction {variable :: Variable}
   | BranchInstruction {consequent :: Label, alternate :: Label}
-  | CallInstruction {arity :: Int}
-
--- PushConst 42
--- MakeClosure L0        ;; create closure for `(lambda (x) x)`
--- Call                  ;; call with argument 42
--- Return
-
--- Label L0 (x):             ;; function body starts here
---   Lookup x
---   Return
+  | LetInstruction {body :: Label}
+  | ApplyInstruction {arity :: Int}

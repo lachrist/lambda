@@ -14,8 +14,11 @@ library
   exposed-modules:
       Builtin
       Bytecode.Compiler
+      Bytecode.Frame
       Bytecode.Instruction
       Bytecode.Interpreter
+      Bytecode.Lambda
+      Bytecode.Pointer
       Expression
       Interpreter
       Memory
@@ -28,6 +31,7 @@ library
       src
   default-extensions:
       NoFieldSelectors
+      DuplicateRecordFields
   ghc-options: -Wall
   build-depends:
       array
@@ -48,8 +52,11 @@ test-suite test
       ParserSpec
       Builtin
       Bytecode.Compiler
+      Bytecode.Frame
       Bytecode.Instruction
       Bytecode.Interpreter
+      Bytecode.Lambda
+      Bytecode.Pointer
       Expression
       Interpreter
       Memory
@@ -62,6 +69,7 @@ test-suite test
       src
   default-extensions:
       NoFieldSelectors
+      DuplicateRecordFields
   ghc-options: -main-is Main
   build-depends:
       array

@@ -19,6 +19,7 @@ library
       Bytecode.Interpreter
       Bytecode.Lambda
       Bytecode.Pointer
+      Environment
       Expression
       Interpreter
       Memory
@@ -57,6 +58,7 @@ test-suite test
       Bytecode.Interpreter
       Bytecode.Lambda
       Bytecode.Pointer
+      Environment
       Expression
       Interpreter
       Memory

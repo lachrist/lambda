@@ -4,12 +4,12 @@
 -- Export State(..) and Continuation (..) to disable warning about unused field selectors
 module Interpreter (eval, State (..), Continuation (..)) where
 
-import Builtin (Builtin, enumBuiltin, getBuiltinName)
 import Control.Monad.Except (runExceptT, throwError)
 import Control.Monad.ST (ST, runST)
 import Control.Monad.Trans.Except (ExceptT)
 import Data.Array.MArray (newArray)
 import Data.Map (Map, fromList, insert, lookup, union)
+import Environment (Environment, initialEnvironment)
 import Expression
   ( Expression
       ( ApplicationExpression,
@@ -19,7 +19,7 @@ import Expression
         PrimitiveExpression,
         VariableExpression
       ),
-    Variable (Variable),
+    Variable,
   )
 import Memory (HoleArray (HoleArray), Memory (init, load, save))
 import Primitive (Primitive)
@@ -32,7 +32,7 @@ import Value
   )
 
 data Lambda = Lambda
-  { environment :: Map Variable Value,
+  { environment :: Environment,
     parameters :: [Variable],
     body :: Expression
   }
@@ -40,17 +40,17 @@ data Lambda = Lambda
 
 data Continuation
   = IfContinuation
-      { environment :: Map Variable Value,
+      { environment :: Environment,
         consequent :: Expression,
         alternate :: Expression
       }
   | LetContinuation
-      { environment :: Map Variable Value,
+      { environment :: Environment,
         bound :: Variable,
         body :: Expression
       }
   | ApplyContinuation
-      { environment :: Map Variable Value,
+      { environment :: Environment,
         todo :: [Expression],
         done :: [Value]
       }
@@ -60,7 +60,7 @@ type Store x m = m x Address (IndirectValue Lambda)
 data State x m
   = Ongoing
       { control :: Expression,
-        env :: Map Variable Value,
+        env :: Environment,
         store :: Store x m,
         cont :: [Continuation]
       }
@@ -131,23 +131,14 @@ applyIndirect (LambdaIndirect (Lambda env params body)) input cont store = do
 applyIndirect callee input _ _ =
   throwError $ "Cannot apply " ++ show callee ++ " onto " ++ show input
 
----------------
--- Interface --
----------------
+----------
+-- Eval --
+-----------
 
-run :: (Memory m) => State x m -> ExceptT String (ST x) (Maybe Primitive)
-run (Success (PrimitiveImmediate primitive)) = return $ Just primitive
-run (Success _) = return Nothing
-run state = step state >>= run
-
-toBuiltinBinding :: Builtin -> (Variable, Value)
-toBuiltinBinding builtin =
-  (Variable $ getBuiltinName builtin, BuiltinImmediate builtin)
-
-initialEnvironment :: Map Variable Value
-initialEnvironment =
-  fromList
-    (map toBuiltinBinding enumBuiltin)
+exec :: (Memory m) => State x m -> ExceptT String (ST x) (Maybe Primitive)
+exec (Success (PrimitiveImmediate primitive)) = return $ Just primitive
+exec (Success _) = return Nothing
+exec state = step state >>= exec
 
 initializeStore :: Int -> ST x (HoleArray x Address (IndirectValue Lambda))
 initializeStore size = HoleArray <$> newArray (0, size) Nothing
@@ -155,4 +146,4 @@ initializeStore size = HoleArray <$> newArray (0, size) Nothing
 eval :: Int -> Expression -> Either String (Maybe Primitive)
 eval memory program = runST $ do
   store <- initializeStore memory
-  runExceptT $ run (Ongoing program initialEnvironment store [])
+  runExceptT $ exec (Ongoing program initialEnvironment store [])

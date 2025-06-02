@@ -26,8 +26,8 @@ formatProgram (Program (Label entry) body) =
   pack (show entry) : concatMap formatBlock (M.toAscList body)
 
 formatBlock :: (Label, Block) -> [T.Text]
-formatBlock (Label hash, Block params body) =
-  (pack (show hash) <> " (" <> T.intercalate " " (map formatVariable params) <> "):")
+formatBlock (label, Block params body) =
+  (formatLabel label <> " (" <> T.intercalate " " (map formatVariable params) <> "):")
     : map formatInstruction (V.toList body)
 
 formatInstruction :: Instruction -> T.Text
@@ -42,9 +42,9 @@ formatInstruction (ReadInstruction var) =
 formatInstruction (BranchInstruction label1 label2) =
   "  if " <> formatLabel label1 <> " " <> formatLabel label2
 formatInstruction (LetGotoInstruction label) =
-  " let " <> formatLabel label
+  "  let " <> formatLabel label
 formatInstruction (ApplyInstruction arity) =
-  " apply " <> pack (show arity)
+  "  apply " <> pack (show arity)
 
 format :: Program -> Text
 format = T.unlines . formatProgram

@@ -34,7 +34,10 @@ compileInstruction (LetExpression left right body) = do
 compileInstruction (ApplicationExpression callee input) = do
   calleeCode <- compileInstruction callee
   inputCode <- mapM compileInstruction input <&> DL.concat
-  return $ DL.append calleeCode inputCode
+  return $
+    calleeCode
+      `DL.append` inputCode
+      `DL.append` DL.singleton (ApplyInstruction (length input))
 
 compileBlock :: [Variable] -> Expression -> Writer ProgramBody Label
 compileBlock params body =

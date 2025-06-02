@@ -2,6 +2,8 @@
 
 module EvalSpec (tests) where
 
+import Bytecode.Compiler (compile)
+import Bytecode.Interpreter (eval)
 import Data.Text (Text, unpack)
 import Interpreter (eval)
 import Parser (File (File), parseFile)
@@ -11,8 +13,15 @@ import Test.Tasty.HUnit (testCase, (@?=))
 
 testInterpreter :: Text -> Primitive -> TestTree
 testInterpreter program result =
-  testCase (unpack program) $
-    (parseFile (File "main.scm" program) >>= eval 10000) @?= Right (Just result)
+  testGroup
+    (unpack program)
+    [ testCase "direct" $
+        (parseFile (File "main.scm" program) >>= Interpreter.eval 10000)
+          @?= Right (Just result),
+      testCase "bytecode" $
+        (parseFile (File "main.scm" program) >>= Bytecode.Interpreter.eval 10000 . compile)
+          @?= Right (Just result)
+    ]
 
 tests :: TestTree
 tests =

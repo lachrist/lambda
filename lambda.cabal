@@ -19,9 +19,11 @@ library
       Bytecode.Instruction
       Bytecode.Interpreter
       Bytecode.Lambda
+      Bytecode.Parser
       Bytecode.Pointer
       Environment
       Expression
+      File
       Interpreter
       Memory
       Parser
@@ -30,6 +32,47 @@ library
   other-modules:
       Paths_lambda
   hs-source-dirs:
+      src
+  default-extensions:
+      NoFieldSelectors
+      DuplicateRecordFields
+  ghc-options: -Wall
+  build-depends:
+      array
+    , base
+    , containers
+    , dlist
+    , hashable
+    , megaparsec
+    , mtl
+    , text
+    , transformers
+    , vector
+  default-language: Haskell2010
+
+executable lambda
+  main-is: Main.hs
+  other-modules:
+      Builtin
+      Bytecode.Compiler
+      Bytecode.Formatter
+      Bytecode.Frame
+      Bytecode.Instruction
+      Bytecode.Interpreter
+      Bytecode.Lambda
+      Bytecode.Parser
+      Bytecode.Pointer
+      Environment
+      Expression
+      File
+      Interpreter
+      Memory
+      Parser
+      Primitive
+      Value
+      Paths_lambda
+  hs-source-dirs:
+      app
       src
   default-extensions:
       NoFieldSelectors
@@ -62,9 +105,11 @@ test-suite test
       Bytecode.Instruction
       Bytecode.Interpreter
       Bytecode.Lambda
+      Bytecode.Parser
       Bytecode.Pointer
       Environment
       Expression
+      File
       Interpreter
       Memory
       Parser

@@ -3,10 +3,13 @@
 module EvalSpec (tests) where
 
 import Bytecode.Compiler (compile)
+import Bytecode.Formatter (format)
 import Bytecode.Interpreter (eval)
+import Bytecode.Parser (parseFile)
 import Data.Text (Text, unpack)
+import File (File (..))
 import Interpreter (eval)
-import Parser (File (File), parseFile)
+import Parser (parseFile)
 import Primitive (Primitive (BooleanPrimitive, NumberPrimitive))
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
@@ -16,12 +19,20 @@ testInterpreter program result =
   testGroup
     (unpack program)
     [ testCase "direct" $
-        (parseFile (File "main.scm" program) >>= Interpreter.eval 10000)
+        (parsing >>= Interpreter.eval 10000)
           @?= Right (Just result),
       testCase "bytecode" $
-        (parseFile (File "main.scm" program) >>= Bytecode.Interpreter.eval 10000 . compile)
+        ( parsing
+            >>= Bytecode.Parser.parseFile
+              . File "main.scm.byte"
+              . Bytecode.Formatter.format
+              . Bytecode.Compiler.compile
+            >>= Bytecode.Interpreter.eval 10000
+        )
           @?= Right (Just result)
     ]
+  where
+    parsing = Parser.parseFile (File "main.scm" program)
 
 tests :: TestTree
 tests =

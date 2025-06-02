@@ -14,7 +14,8 @@ import Expression
       ),
     Variable (Variable),
   )
-import Parser (File (File), parseFile)
+import File (File (..))
+import Parser (parseFile)
 import Primitive (Primitive (BooleanPrimitive, NullPrimitive, NumberPrimitive))
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))

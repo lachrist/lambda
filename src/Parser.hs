@@ -1,7 +1,6 @@
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser (parseFile, File (File)) where
+module Parser where
 
 import Control.Applicative (Alternative (..), (<|>))
 import Control.Monad (void)
@@ -19,6 +18,7 @@ import Expression
       ),
     Variable (Variable),
   )
+import File (File (File))
 import Primitive (Primitive (BooleanPrimitive, NullPrimitive, NumberPrimitive))
 import Text.Megaparsec (errorBundlePretty, try)
 import qualified Text.Megaparsec as P
@@ -44,6 +44,14 @@ parseBoolean = (True <$ symbol "#t") <|> (False <$ symbol "#f")
 
 parseNull :: Parser ()
 parseNull = void $ symbol "#n"
+
+parsePrimitive :: Parser Primitive
+parsePrimitive =
+  P.choice
+    [ NullPrimitive <$ parseNull,
+      BooleanPrimitive <$> parseBoolean,
+      NumberPrimitive <$> parseNumber
+    ]
 
 enumOperatorChar :: [Char]
 enumOperatorChar = "+-*/?!=><"
@@ -96,9 +104,7 @@ parseApplicationExpression = do
 parseExpression :: Parser Expression
 parseExpression =
   P.choice
-    [ PrimitiveExpression NullPrimitive <$ parseNull,
-      PrimitiveExpression . BooleanPrimitive <$> parseBoolean,
-      PrimitiveExpression . NumberPrimitive <$> parseNumber,
+    [ PrimitiveExpression <$> parsePrimitive,
       VariableExpression <$> parseVariable,
       try parseIfExpression,
       try parseLetExpression,
@@ -106,10 +112,8 @@ parseExpression =
       parseApplicationExpression
     ]
 
-data File = File {path :: String, content :: Text}
-
 parseFile :: File -> Either String Expression
-parseFile (File {path, content}) =
+parseFile (File path content) =
   case P.runParser (space *> parseExpression <* P.eof) path content of
     Left failure -> Left $ errorBundlePretty failure
     Right expression -> Right expression

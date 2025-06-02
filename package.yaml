@@ -1,6 +1,14 @@
 name: lambda
 version: 0.0.0.0
 
+executables:
+  lambda:
+    main: Main.hs
+    source-dirs:
+      - app
+      - src
+    ghc-options: -Wall
+
 dependencies:
   - base
   - text

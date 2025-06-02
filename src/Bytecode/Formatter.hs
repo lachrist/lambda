@@ -7,19 +7,17 @@ import Data.Map as M (toAscList)
 import Data.Text as T (Text, intercalate, pack, unlines)
 import qualified Data.Vector as V
 import Expression (Variable (..))
-import Primitive (Primitive (..))
-
-formatPrimitive :: Primitive -> Text
-formatPrimitive NullPrimitive = "#n"
-formatPrimitive (BooleanPrimitive True) = "#t"
-formatPrimitive (BooleanPrimitive False) = "#f"
-formatPrimitive (NumberPrimitive num) = pack $ show num
+import Primitive (formatPrimitive)
 
 formatLabel :: Label -> Text
 formatLabel (Label hash) = pack (show hash)
 
 formatVariable :: Variable -> Text
 formatVariable (Variable inner) = inner
+
+formatMaybeVariable :: Maybe Variable -> Text
+formatMaybeVariable (Just variable) = formatVariable variable
+formatMaybeVariable Nothing = "."
 
 formatProgram :: Program -> [T.Text]
 formatProgram (Program (Label entry) body) =
@@ -31,17 +29,15 @@ formatBlock (label, Block params body) =
     : map formatInstruction (V.toList body)
 
 formatInstruction :: Instruction -> T.Text
-formatInstruction (PushPrimitiveInstruction prim) =
-  "  primitive " <> formatPrimitive prim
-formatInstruction (PushLambdaInstruction Nothing label) =
-  "  lambda " <> formatLabel label
-formatInstruction (PushLambdaInstruction (Just self) label) =
-  "  lambda " <> formatVariable self <> formatLabel label
+formatInstruction (PrimitiveInstruction prim) =
+  "  primitive " <> pack (formatPrimitive prim)
+formatInstruction (LambdaInstruction self label) =
+  "  lambda " <> formatMaybeVariable self <> " " <> formatLabel label
 formatInstruction (ReadInstruction var) =
   "  read " <> formatVariable var
-formatInstruction (BranchInstruction label1 label2) =
+formatInstruction (IfInstruction label1 label2) =
   "  if " <> formatLabel label1 <> " " <> formatLabel label2
-formatInstruction (LetGotoInstruction label) =
+formatInstruction (LetInstruction label) =
   "  let " <> formatLabel label
 formatInstruction (ApplyInstruction arity) =
   "  apply " <> pack (show arity)

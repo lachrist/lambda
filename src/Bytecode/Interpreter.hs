@@ -60,15 +60,15 @@ step (State frame@(Frame pointer stack _) dump prog store) =
     (Just instr) -> Right <$> dispatchInstruction instr (State (incrementFramePosition frame) dump prog store)
 
 dispatchInstruction :: (Memory m) => Instruction -> State x m -> ExceptT String (ST x) (State x m)
-dispatchInstruction (PushPrimitiveInstruction prim) (State frame dump prog store) =
+dispatchInstruction (PrimitiveInstruction prim) (State frame dump prog store) =
   return $ State (pushFrameValue (PrimitiveImmediate prim) frame) dump prog store
-dispatchInstruction (PushLambdaInstruction self label) (State frame dump prog store) = do
+dispatchInstruction (LambdaInstruction self label) (State frame dump prog store) = do
   addr <- Memory.init store
   save addr (LambdaIndirect $ makeLambda label ((,addr) <$> self) frame) store
   return $ State (pushFrameValue (Reference addr) frame) dump prog store
 dispatchInstruction (ReadInstruction key) (State frame dump prog store) =
   (\val -> State (pushFrameValue val frame) dump prog store) <$> readFrame key frame
-dispatchInstruction (BranchInstruction pos neg) (State frame dump prog store) = do
+dispatchInstruction (IfInstruction pos neg) (State frame dump prog store) = do
   (test, frame') <- popFrameValue frame
   fork <- toBool test
   enter
@@ -79,7 +79,7 @@ dispatchInstruction (ApplyInstruction arity) (State frame dump prog store) = do
   (args, frame') <- popMultipleFrameValues arity frame
   (callee, frame'') <- popFrameValue frame'
   apply callee (reverse args) (State frame'' dump prog store)
-dispatchInstruction (LetGotoInstruction label) (State frame dump prog store) = do
+dispatchInstruction (LetInstruction label) (State frame dump prog store) = do
   (right, frame') <- popFrameValue frame
   enter
     (makeFrame label (getFrameEnvironment frame))

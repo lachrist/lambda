@@ -1,6 +1,6 @@
 module Bytecode.Compiler (compile) where
 
-import Bytecode.Instruction (Block (Block), Instruction (..), Label (Label), Program (Program), ProgramBody)
+import Bytecode.Instruction (Block (Block), Instruction (..), Label (..), Program (..), ProgramBody)
 import Control.Monad.Writer (MonadWriter (tell), Writer, runWriter)
 import qualified Data.DList as DL
 import Data.Functor ((<&>))
@@ -10,27 +10,29 @@ import qualified Data.Vector as V
 import Expression (Expression (..), Variable)
 
 compileInstruction :: Expression -> Writer ProgramBody (DL.DList Instruction)
-compileInstruction (PrimitiveExpression prim) = return $ DL.singleton $ PushPrimitiveInstruction prim
-compileInstruction (VariableExpression var) = return $ DL.singleton $ ReadInstruction var
+compileInstruction (PrimitiveExpression prim) =
+  return $ DL.singleton $ PrimitiveInstruction prim
+compileInstruction (VariableExpression var) =
+  return $ DL.singleton $ ReadInstruction var
 compileInstruction (IfExpression test thenBranch elseBranch) = do
   code <- compileInstruction test
   thenLabel <- compileBlock [] thenBranch
   elseLabel <- compileBlock [] elseBranch
-  return $ DL.snoc code (BranchInstruction thenLabel elseLabel)
+  return $ DL.snoc code (IfInstruction thenLabel elseLabel)
 compileInstruction (LambdaExpression params body) = do
   bodyLabel <- compileBlock params body
-  return $ DL.singleton $ PushLambdaInstruction Nothing bodyLabel
+  return $ DL.singleton $ LambdaInstruction Nothing bodyLabel
 compileInstruction (LetExpression left (LambdaExpression params lambdaBody) letBody) = do
   lambdaBodyLabel <- compileBlock params lambdaBody
   bodyLabel <- compileBlock [left] letBody
   return $
     DL.append
-      (DL.singleton $ PushLambdaInstruction (Just left) lambdaBodyLabel)
-      (DL.singleton $ LetGotoInstruction bodyLabel)
+      (DL.singleton $ LambdaInstruction (Just left) lambdaBodyLabel)
+      (DL.singleton $ LetInstruction bodyLabel)
 compileInstruction (LetExpression left right body) = do
   rightCode <- compileInstruction right
   bodyLabel <- compileBlock [left] body
-  return $ DL.snoc rightCode (LetGotoInstruction bodyLabel)
+  return $ DL.snoc rightCode (LetInstruction bodyLabel)
 compileInstruction (ApplicationExpression callee input) = do
   calleeCode <- compileInstruction callee
   inputCode <- mapM compileInstruction input <&> DL.concat
@@ -41,7 +43,7 @@ compileInstruction (ApplicationExpression callee input) = do
 
 compileBlock :: [Variable] -> Expression -> Writer ProgramBody Label
 compileBlock params body =
-  let label = Label $ hash (params, body)
+  let label = Label $ fromIntegral $ hash (params, body)
    in do
         code <- compileInstruction body
         tell $ M.fromList [(label, Block params (V.fromList $ DL.toList code))]

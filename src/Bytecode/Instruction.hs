@@ -5,7 +5,7 @@ import Data.Vector as V (Vector)
 import Expression (Variable)
 import Primitive (Primitive)
 
-newtype Label = Label Int deriving (Eq, Ord, Show)
+newtype Label = Label Word deriving (Eq, Ord, Show)
 
 type ProgramBody = Map Label Block
 
@@ -13,13 +13,19 @@ data Program = Program
   { entry :: Label,
     body :: ProgramBody
   }
+  deriving (Show)
 
-data Block = Block {parameters :: [Variable], body :: Vector Instruction}
+data Block = Block
+  { parameters :: [Variable],
+    body :: Vector Instruction
+  }
+  deriving (Show)
 
 data Instruction
-  = PushPrimitiveInstruction {literal :: Primitive}
-  | PushLambdaInstruction {self :: Maybe Variable, definition :: Label}
+  = PrimitiveInstruction {literal :: Primitive}
+  | LambdaInstruction {self :: Maybe Variable, definition :: Label}
   | ReadInstruction {variable :: Variable}
-  | BranchInstruction {consequent :: Label, alternate :: Label}
-  | LetGotoInstruction {body :: Label}
+  | IfInstruction {consequent :: Label, alternate :: Label}
+  | LetInstruction {body :: Label}
   | ApplyInstruction {arity :: Int}
+  deriving (Show)

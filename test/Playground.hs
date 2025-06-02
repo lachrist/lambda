@@ -3,7 +3,8 @@ module Playground where
 import Bytecode.Compiler (compile)
 import Bytecode.Formatter (format)
 import Data.Text (pack, unpack)
-import Parser (File (..), parseFile)
+import File (File (..))
+import Parser (parseFile)
 
 comp :: String -> IO ()
 comp input =

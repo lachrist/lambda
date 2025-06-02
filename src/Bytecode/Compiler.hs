@@ -1,7 +1,7 @@
-module VM.Compiler where
+module Bytecode.Compiler where
 
+import Bytecode.Instruction (TextualProgram)
 import Expression (Expression)
-import VM.Bytecode (TextualProgram)
 
 compile :: Expression -> TextualProgram
 compile _ = error "todo"

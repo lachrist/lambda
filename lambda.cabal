@@ -13,15 +13,15 @@ build-type:     Simple
 library
   exposed-modules:
       Builtin
-      Eval.Interpreter
-      Eval.Value
+      Bytecode.Compiler
+      Bytecode.Instruction
+      Bytecode.Interpreter
       Expression
+      Interpreter
+      Memory
       Parser
       Primitive
-      Store
-      VM.Bytecode
-      VM.Compiler
-      VM.Value
+      Value
   other-modules:
       Paths_lambda
   hs-source-dirs:
@@ -47,15 +47,15 @@ test-suite test
       EvalSpec
       ParserSpec
       Builtin
-      Eval.Interpreter
-      Eval.Value
+      Bytecode.Compiler
+      Bytecode.Instruction
+      Bytecode.Interpreter
       Expression
+      Interpreter
+      Memory
       Parser
       Primitive
-      Store
-      VM.Bytecode
-      VM.Compiler
-      VM.Value
+      Value
       Paths_lambda
   hs-source-dirs:
       test

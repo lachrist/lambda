@@ -3,7 +3,7 @@
 module EvalSpec (tests) where
 
 import Data.Text (Text, unpack)
-import Eval.Interpreter (exec)
+import Interpreter (eval)
 import Parser (File (File), parseFile)
 import Primitive (Primitive (BooleanPrimitive, NumberPrimitive))
 import Test.Tasty (TestTree, testGroup)
@@ -12,7 +12,7 @@ import Test.Tasty.HUnit (testCase, (@?=))
 testInterpreter :: Text -> Primitive -> TestTree
 testInterpreter program result =
   testCase (unpack program) $
-    (parseFile (File "main.scm" program) >>= exec 10000) @?= Right (Just result)
+    (parseFile (File "main.scm" program) >>= eval 10000) @?= Right (Just result)
 
 tests :: TestTree
 tests =

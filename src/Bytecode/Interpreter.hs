@@ -1,19 +1,28 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 
+module Bytecode.Interpreter where
+
+import Bytecode.Instruction (Block (Block), Instruction (..), Label, Program)
 import Control.Monad.Except (ExceptT, throwError)
 import Control.Monad.ST (ST)
 import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import Expression (Variable)
-import Primitive
-import Store (Store (init, save))
-import VM.Bytecode (Block (Block), Instruction (BranchInstruction, CallInstruction, LambdaInstruction, PrimitiveInstruction, ReadInstruction), Label, Program)
-import VM.Value (Address, IndirectValue (LambdaIndirect), Value (PrimitiveImmediate, Reference))
+import Memory (Memory (..))
+import Primitive (Primitive (..))
+import Value (Address, IndirectValue (..), Value (..), applyBuiltin)
 
 type Environment = Map Variable Value
 
 data Pointer = Pointer {block :: Label, position :: Int}
+
+data Lambda = Lambda
+  { environment :: Map Variable Value,
+    control :: Label
+  }
+  deriving (Show)
 
 data Frame = Frame
   { pointer :: Pointer,
@@ -21,11 +30,11 @@ data Frame = Frame
     environment :: Environment
   }
 
-data State x s = State
+data State x m = State
   { current :: Frame,
     dump :: [Frame],
     program :: Program,
-    store :: s x Address IndirectValue
+    store :: m x Address (IndirectValue Lambda)
   }
 
 newtype Completion = Completion Value
@@ -116,7 +125,7 @@ branch _ = throwError "not a boolean"
 -- Interpreter --
 -----------------
 
-step :: (Store s) => State x s -> ExceptT String (ST x) (Either Completion (State x s))
+step :: (Memory m) => State x m -> ExceptT String (ST x) (Either Completion (State x m))
 step state@(State (Frame pointer stack _) dump prog store) =
   loadInstruction pointer prog >>= \case
     Nothing -> case (stack, dump) of
@@ -125,13 +134,13 @@ step state@(State (Frame pointer stack _) dump prog store) =
       (_, _) -> throwError "expected a single remaining value on the stack"
     (Just instr) -> Right . incrementStatePosition <$> dispatchInstruction instr state
 
-dispatchInstruction :: (Store s) => Instruction -> State x s -> ExceptT String (ST x) (State x s)
+dispatchInstruction :: (Memory m) => Instruction -> State x m -> ExceptT String (ST x) (State x m)
 dispatchInstruction (PrimitiveInstruction prim) (State curr dump prog store) =
   return $ State (pushFrameValue (PrimitiveImmediate prim) curr) dump prog store
 dispatchInstruction (LambdaInstruction self label) (State curr dump prog store) = do
-  addr <- Store.init store
+  addr <- Memory.init store
   let lambda = Reference addr
-  save addr (LambdaIndirect (insertMaybe self lambda (getFrameEnvironment curr)) label) store
+  save addr (LambdaIndirect $ Lambda (insertMaybe self lambda (getFrameEnvironment curr)) label) store
   return $ State (pushFrameValue lambda curr) dump prog store
 dispatchInstruction (ReadInstruction key) (State curr dump prog store) =
   (\val -> State (pushFrameValue val curr) dump prog store) <$> readFrame key curr
@@ -144,7 +153,7 @@ dispatchInstruction (CallInstruction arity) (State curr dump prog store) = do
   (callee, curr'') <- popFrameValue curr'
   call callee (reverse args) (State curr'' dump prog store)
 
-goto :: (Monad m) => Label -> [Value] -> State x s -> ExceptT String m (State x s)
+goto :: (Memory m) => Label -> [Value] -> State x m -> ExceptT String (ST x) (State x m)
 goto label args (State curr dump prog store) =
   case M.lookup label prog of
     Nothing -> throwError $ "missing label" ++ show label
@@ -152,5 +161,7 @@ goto label args (State curr dump prog store) =
       (\curr' -> State curr' (curr : dump) prog store)
         <$> makeFrame label params args (getFrameEnvironment curr)
 
-call :: (Monad m) => Value -> [Value] -> State x s -> ExceptT String m (State x s)
-call _ _ _ = _
+call :: (Memory m) => Value -> [Value] -> State x m -> ExceptT String (ST x) (State x m)
+call (BuiltinImmediate builtin) arguments (State curr dump prog store) =
+  (\result -> State (pushFrameValue result curr) dump prog store) <$> applyBuiltin builtin arguments store
+call _ _ _ = error "todo"

@@ -1,6 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 
-module Store where
+module Memory (Memory (..), HoleArray (..)) where
 
 import Control.Monad (unless)
 import Control.Monad.Except (throwError)
@@ -10,18 +10,12 @@ import Control.Monad.Trans.Except (ExceptT)
 import Data.Array.ST (STArray, getBounds, readArray, writeArray)
 import Data.Ix (Ix, inRange, range)
 
-newtype Memory x a v = HoleArray {array :: STArray x a (Maybe v)}
+newtype HoleArray x a v = HoleArray {array :: STArray x a (Maybe v)}
 
-data StoreStatus a = Success a | Failure
-
-class Store s where
+class Memory s where
   load :: Ix a => a -> s x a v -> ExceptT String (ST x) v
   save :: Ix a => a -> v -> s x a v -> ExceptT String (ST x) ()
   init :: Ix a => s x a v -> ExceptT String (ST x) a
-
-toEitherValue :: Maybe v -> Either String v
-toEitherValue Nothing = Left "no value at that address"
-toEitherValue (Just val) = Right val
 
 findHole :: Ix a => STArray x a (Maybe v) -> [a] -> ExceptT String (ST x) a
 findHole _ [] = throwError "out of memory"
@@ -30,7 +24,7 @@ findHole store (curr : rest) =
     Nothing -> return curr
     Just _ -> findHole store rest
 
-instance Store Memory where
+instance Memory HoleArray where
   load address (HoleArray store) = do
     bounds <- lift $ getBounds store
     unless

@@ -1,4 +1,4 @@
-module VM.Bytecode where
+module Bytecode.Instruction where
 
 import Data.Map (Map)
 import Data.Text (Text)
